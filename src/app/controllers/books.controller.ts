@@ -1,26 +1,35 @@
 import express, { Request, Response } from "express";
+import Book from "./../models/book.model";
 
 const booksRoutes = express.Router();
 
 // 1. Create a Book
-booksRoutes.post("/", (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: "Book created successfully",
-    data: {
-      // TODO
-      //   _id: "64f123abc4567890def12345",
-      //   title: "The Theory of Everything",
-      //   author: "Stephen Hawking",
-      //   genre: "SCIENCE",
-      //   isbn: "9780553380163",
-      //   description: "An overview of cosmology and black holes.",
-      //   copies: 5,
-      //   available: true,
-      //   createdAt: "2024-11-19T10:23:45.123Z",
-      //   updatedAt: "2024-11-19T10:23:45.123Z",
-    },
-  });
+booksRoutes.post("/", async (req: Request, res: Response) => {
+  try {
+    const { title, author, genre, isbn, description, copies } = req.body;
+
+    const book = await Book.create({
+      title,
+      author,
+      genre,
+      isbn,
+      description,
+      copies,
+      available: copies > 0,
+    });
+
+    res.json({
+      success: true,
+      message: "Book created successfully",
+      data: book,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Failed to create book",
+      success: false,
+      error: error,
+    });
+  }
 });
 
 // 2. Get All Books
