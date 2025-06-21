@@ -1,0 +1,30 @@
+{
+  "name": "apollo-level2-web-dev_b5a3_nishu",
+  "version": "1.0.0",
+  "description": "PH-L2 Assignment 3",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mern",
+    "ts",
+    "mongoose",
+    "zod",
+    "learning",
+    "assignment"
+  ],
+  "author": "Ali Nishu",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}
