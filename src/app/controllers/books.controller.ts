@@ -1,13 +1,41 @@
 import express, { Request, Response } from "express";
 import Book from "./../models/book.model";
+import { z } from "zod";
+import { Genre } from "../interfaces/book.interface";
 
 const booksRoutes = express.Router();
+
+const BookSchema = z.object({
+  title: z.string().trim().nonempty("Title is required"),
+  author: z.string().trim().nonempty("Title is required"),
+  genre: z.nativeEnum(Genre, {
+    errorMap: () => ({ message: "Invalid genre" }),
+  }),
+  isbn: z.string().trim().nonempty("Title is required"),
+  description: z.string().optional(),
+  copies: z
+    .number()
+    .int("Copies must be an integer")
+    .nonnegative("Copies must be non-negative"),
+});
 
 // 1. Create a Book
 booksRoutes.post("/", async (req: Request, res: Response) => {
   try {
-    const data = { ...req.body };
-    data.available = data.copies > 0;
+    const validate = BookSchema.safeParse(req.body);
+    if (!validate.success) {
+      res.status(400).json({
+        message: "Validation failed",
+        success: false,
+        error: validate.error.errors,
+      });
+      return;
+    }
+
+    const data = {
+      ...validate.data,
+      available: validate.data.copies > 0,
+    };
 
     const book = await Book.create(data);
 
@@ -102,8 +130,23 @@ booksRoutes.get("/:bookId", async (req: Request, res: Response) => {
 booksRoutes.put("/:bookId", async (req: Request, res: Response) => {
   try {
     const { bookId } = req.params;
-    const data = { ...req.body };
-    data.available = data.copies > 0;
+    const updateSchema = BookSchema.partial();
+    const validate = updateSchema.safeParse(req.body);
+    if (!validate.success) {
+      res.status(400).json({
+        message: "Validation failed",
+        success: false,
+        error: validate.error.errors,
+      });
+      return;
+    }
+
+    const data = {
+      ...validate.data,
+      ...(validate.data.copies !== undefined && {
+        available: validate.data.copies > 0,
+      }),
+    };
 
     const book = await Book.findByIdAndUpdate(bookId, data, {
       new: true,

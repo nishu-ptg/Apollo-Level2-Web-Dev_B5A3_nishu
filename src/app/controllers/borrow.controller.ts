@@ -1,13 +1,31 @@
 import express, { Request, Response } from "express";
 import Book from "../models/book.model";
 import Borrow from "../models/borrow.model";
+import { z } from "zod";
 
 const borrowRoutes = express.Router();
+
+export const BorrowSchema = z.object({
+  book: z.string(),
+  quantity: z.number().int().positive(),
+  dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid Date format",
+  }),
+});
 
 // 6. Borrow a Book
 borrowRoutes.post("/", async (req: Request, res: Response) => {
   try {
-    const { book: bookId, quantity, dueDate } = req.body;
+    const validate = BorrowSchema.safeParse(req.body);
+    if (!validate.success) {
+      res.status(400).json({
+        message: "Validation failed",
+        success: false,
+        errors: validate.error.errors,
+      });
+      return;
+    }
+    const { book: bookId, quantity, dueDate } = validate.data;
 
     const book = await Book.findById(bookId);
     if (!book) {
