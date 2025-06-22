@@ -110,11 +110,12 @@ booksRoutes.put("/:bookId", async (req: Request, res: Response) => {
     });
 
     if (!book) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: `Book not found with ID: '${bookId}'`,
         data: null,
       });
+      return;
     }
 
     res.json({
@@ -139,11 +140,12 @@ booksRoutes.delete("/:bookId", async (req: Request, res: Response) => {
     const book = await Book.findByIdAndDelete(bookId);
 
     if (!book) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: `Book not found with ID: '${bookId}'`,
         data: null,
       });
+      return;
     }
 
     res.json({
