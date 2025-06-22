@@ -2,79 +2,76 @@ import express, { Request, Response } from "express";
 import Book from "../models/book.model";
 import Borrow from "../models/borrow.model";
 import { z } from "zod";
+import BorrowSchema from "../validators/borrow.validator";
+import checkNotEmptyBody from "../middlewares/checkNotEmptyBody";
 
 const borrowRoutes = express.Router();
 
-export const BorrowSchema = z.object({
-  book: z.string(),
-  quantity: z.number().int().positive(),
-  dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "Invalid Date format",
-  }),
-});
-
 // 6. Borrow a Book
-borrowRoutes.post("/", async (req: Request, res: Response) => {
-  try {
-    const validate = BorrowSchema.safeParse(req.body);
-    if (!validate.success) {
+borrowRoutes.post(
+  "/",
+  checkNotEmptyBody,
+  async (req: Request, res: Response) => {
+    try {
+      const validate = BorrowSchema.safeParse(req.body);
+      if (!validate.success) {
+        res.status(400).json({
+          message: "Validation failed",
+          success: false,
+          errors: validate.error.errors,
+        });
+        return;
+      }
+      const { book: bookId, quantity, dueDate } = validate.data;
+
+      const book = await Book.findById(bookId);
+      if (!book) {
+        res.status(404).json({
+          success: false,
+          message: `Book not found with ID: '${bookId}'`,
+        });
+        return;
+      }
+
+      if (!book.available) {
+        res.status(400).json({
+          success: false,
+          message: `Book '${book.title}' (ISBN: ${book.isbn}) is not available for borrowing`,
+        });
+        return;
+      }
+
+      if (book.copies < quantity) {
+        res.status(400).json({
+          success: false,
+          message: `Not enough copies, available: ${book.copies}, requested: ${quantity}`,
+        });
+        return;
+      }
+
+      book.copies -= quantity;
+      await book.save();
+
+      const borrow = await Borrow.create({
+        book: bookId,
+        quantity,
+        dueDate,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Book borrowed successfully",
+        data: borrow,
+      });
+    } catch (error) {
       res.status(400).json({
-        message: "Validation failed",
         success: false,
-        errors: validate.error.errors,
+        message: (error as Error).message || "Failed to borrow book",
+        error,
       });
-      return;
     }
-    const { book: bookId, quantity, dueDate } = validate.data;
-
-    const book = await Book.findById(bookId);
-    if (!book) {
-      res.status(404).json({
-        success: false,
-        message: `Book not found with ID: '${bookId}'`,
-      });
-      return;
-    }
-
-    if (!book.available) {
-      res.status(400).json({
-        success: false,
-        message: `Book '${book.title}' (ISBN: ${book.isbn}) is not available for borrowing`,
-      });
-      return;
-    }
-
-    if (book.copies < quantity) {
-      res.status(400).json({
-        success: false,
-        message: `Not enough copies, available: ${book.copies}, requested: ${quantity}`,
-      });
-      return;
-    }
-
-    book.copies -= quantity;
-    book.available = book.copies > 0;
-    await book.save();
-
-    const borrow = await Borrow.create({
-      book: bookId,
-      quantity,
-      dueDate,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Book borrowed successfully",
-      data: borrow,
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: (error as Error).message || "Failed to borrow book",
-      error,
-    });
   }
-});
+);
 
 // 7. Borrowed Books Summary
 borrowRoutes.get("/", async (req: Request, res: Response) => {

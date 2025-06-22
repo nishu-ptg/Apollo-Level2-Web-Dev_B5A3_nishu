@@ -1,10 +1,12 @@
 import express, { Request, Response } from "express";
 import booksRoutes from "./app/controllers/books.controller";
 import borrowRoutes from "./app/controllers/borrow.controller";
+import errorHandler from "./app/middlewares/errorHandler";
 
 const app = express();
 
 app.use(express.json());
+app.use(errorHandler);
 
 // Note: all routes inside api/ retuns json
 // anything outside api/ returns html

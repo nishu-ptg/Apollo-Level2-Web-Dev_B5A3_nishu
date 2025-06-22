@@ -1,57 +1,43 @@
 import express, { Request, Response } from "express";
+import mongoose from "mongoose";
 import Book from "./../models/book.model";
-import { z } from "zod";
-import { Genre } from "../interfaces/book.interface";
+import BookSchema from "../validators/books.validator";
+import checkNotEmptyBody from "../middlewares/checkNotEmptyBody";
 
 const booksRoutes = express.Router();
 
-const BookSchema = z.object({
-  title: z.string().trim().nonempty("Title is required"),
-  author: z.string().trim().nonempty("Title is required"),
-  genre: z.nativeEnum(Genre, {
-    errorMap: () => ({ message: "Invalid genre" }),
-  }),
-  isbn: z.string().trim().nonempty("Title is required"),
-  description: z.string().optional(),
-  copies: z
-    .number()
-    .int("Copies must be an integer")
-    .nonnegative("Copies must be non-negative"),
-});
-
 // 1. Create a Book
-booksRoutes.post("/", async (req: Request, res: Response) => {
-  try {
-    const validate = BookSchema.safeParse(req.body);
-    if (!validate.success) {
-      res.status(400).json({
-        message: "Validation failed",
-        success: false,
-        error: validate.error.errors,
+booksRoutes.post(
+  "/",
+  checkNotEmptyBody,
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = BookSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          error: parsed.error.errors,
+        });
+        return;
+      }
+
+      const book = await Book.create(parsed.data);
+
+      res.status(201).json({
+        success: true,
+        message: "Book created successfully",
+        data: book,
       });
-      return;
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || "Failed to create book",
+        error,
+      });
     }
-
-    const data = {
-      ...validate.data,
-      available: validate.data.copies > 0,
-    };
-
-    const book = await Book.create(data);
-
-    res.json({
-      success: true,
-      message: "Book created successfully",
-      data: book,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: (error as Error).message || "Failed to create books",
-      success: false,
-      error,
-    });
   }
-});
+);
 
 // 2. Get All Books
 booksRoutes.get("/", async (req: Request, res: Response) => {
@@ -72,12 +58,12 @@ booksRoutes.get("/", async (req: Request, res: Response) => {
 
     const books = await Book.find(query)
       .sort({ [sortBy as string]: sortOrder })
-      .limit(parseInt(limit as string));
+      .limit(Number(limit));
 
     if (!books.length) {
       res.json({
         success: false,
-        message: `No books found for filter: '${filter}'`,
+        message: `No books found${filter ? ` for genre '${filter}'` : ""}`,
         data: [],
       });
       return;
@@ -101,12 +87,22 @@ booksRoutes.get("/", async (req: Request, res: Response) => {
 booksRoutes.get("/:bookId", async (req: Request, res: Response) => {
   try {
     const { bookId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid Book ID format: '${bookId}'`,
+        data: null,
+      });
+      return;
+    }
+
     const book = await Book.findById(bookId);
 
     if (!book) {
       res.status(404).json({
         success: false,
-        message: `Invalid book ID: '${bookId}'`,
+        message: `Book not found with ID: '${bookId}'`,
         data: null,
       });
       return;
@@ -127,58 +123,84 @@ booksRoutes.get("/:bookId", async (req: Request, res: Response) => {
 });
 
 // 4. Update a Book
-booksRoutes.put("/:bookId", async (req: Request, res: Response) => {
-  try {
-    const { bookId } = req.params;
-    const updateSchema = BookSchema.partial();
-    const validate = updateSchema.safeParse(req.body);
-    if (!validate.success) {
-      res.status(400).json({
-        message: "Validation failed",
-        success: false,
-        error: validate.error.errors,
+booksRoutes.put(
+  "/:bookId",
+  checkNotEmptyBody,
+  async (req: Request, res: Response) => {
+    try {
+      const { bookId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(bookId)) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid Book ID format: '${bookId}'`,
+          data: null,
+        });
+        return;
+      }
+
+      const updateSchema = BookSchema.partial();
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          error: parsed.error.errors,
+        });
+        return;
+      }
+
+      if (Object.keys(parsed.data).length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "Update data is empty. Please include at least one field.",
+          error: null,
+        });
+        return;
+      }
+
+      const book = await Book.findByIdAndUpdate(bookId, parsed.data, {
+        new: true,
+        runValidators: true,
       });
-      return;
-    }
 
-    const data = {
-      ...validate.data,
-      ...(validate.data.copies !== undefined && {
-        available: validate.data.copies > 0,
-      }),
-    };
+      if (!book) {
+        res.status(404).json({
+          success: false,
+          message: `Book not found with ID: '${bookId}'`,
+          data: null,
+        });
+        return;
+      }
 
-    const book = await Book.findByIdAndUpdate(bookId, data, {
-      new: true,
-    });
-
-    if (!book) {
-      res.status(404).json({
-        success: false,
-        message: `Book not found with ID: '${bookId}'`,
-        data: null,
+      res.json({
+        success: true,
+        message: "Book updated successfully",
+        data: book,
       });
-      return;
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || "Failed to update book",
+        error,
+      });
     }
-
-    res.json({
-      success: true,
-      message: "Book updated successfully",
-      data: book,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || "Failed to retrieve book",
-      error,
-    });
   }
-});
+);
 
 // 5. Delete a Book
 booksRoutes.delete("/:bookId", async (req: Request, res: Response) => {
   try {
     const { bookId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid Book ID format: '${bookId}'`,
+        data: null,
+      });
+      return;
+    }
 
     const book = await Book.findByIdAndDelete(bookId);
 
