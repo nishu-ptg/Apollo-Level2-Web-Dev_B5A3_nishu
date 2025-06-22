@@ -1,7 +1,16 @@
-import { Types } from "mongoose";
+import { Model, Types } from "mongoose";
 
-export default interface IBorrow {
+export interface IBorrow {
   book: Types.ObjectId;
   quantity: number;
   dueDate: Date;
+}
+
+export interface IBorrowModel extends Model<IBorrow> {
+  getSummary(): Promise<
+    {
+      book: { title: string; isbn: string };
+      totalQuantity: number;
+    }[]
+  >;
 }
