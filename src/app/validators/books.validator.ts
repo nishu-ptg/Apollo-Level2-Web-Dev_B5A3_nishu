@@ -25,7 +25,7 @@ const BookSchema = z.object({
 
   description: z.string().optional(),
 
-  copies: z
+  copies: z.coerce
     .number({ required_error: "Copies is required" })
     .int("Copies must be an integer")
     .nonnegative("Copies can't be negative"),

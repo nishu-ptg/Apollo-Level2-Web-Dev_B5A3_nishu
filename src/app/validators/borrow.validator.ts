@@ -5,7 +5,7 @@ const BorrowSchema = z.object({
     .string({ required_error: "Book ID is required" })
     .regex(/^[0-9a-fA-F]{24}$/, "Invalid Book ID"), // MongoDB ObjectId format
 
-  quantity: z
+  quantity: z.coerce
     .number({ required_error: "Quantity is required" })
     .int("Quantity must be an integer")
     .positive("Quantity must be greater than zero"),

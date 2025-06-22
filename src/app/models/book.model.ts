@@ -10,7 +10,11 @@ const bookSchema = new Schema<IBook>(
       required: true,
       enum: Genre,
     },
-    isbn: { type: String, required: true, unique: true },
+    isbn: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     description: { type: String },
     copies: {
       type: Number,

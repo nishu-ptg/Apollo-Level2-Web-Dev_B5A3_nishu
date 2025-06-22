@@ -1,88 +1,73 @@
 import express, { Request, Response } from "express";
-import Book from "../models/book.model";
 import Borrow from "../models/borrow.model";
-import { z } from "zod";
+import Book from "../models/book.model";
 import BorrowSchema from "../validators/borrow.validator";
+import { sendSuccess, sendError } from "../utils/response";
 import checkNotEmptyBody from "../middlewares/checkNotEmptyBody";
 
 const borrowRoutes = express.Router();
 
-// 6. Borrow a Book
-borrowRoutes.post(
-  "/",
-  checkNotEmptyBody,
-  async (req: Request, res: Response) => {
-    try {
-      const validate = BorrowSchema.safeParse(req.body);
-      if (!validate.success) {
-        res.status(400).json({
-          message: "Validation failed",
-          success: false,
-          errors: validate.error.errors,
-        });
-        return;
-      }
-      const { book: bookId, quantity, dueDate } = validate.data;
-
-      const book = await Book.findById(bookId);
-      if (!book) {
-        res.status(404).json({
-          success: false,
-          message: `Book not found with ID: '${bookId}'`,
-        });
-        return;
-      }
-
-      if (!book.available) {
-        res.status(400).json({
-          success: false,
-          message: `Book '${book.title}' (ISBN: ${book.isbn}) is not available for borrowing`,
-        });
-        return;
-      }
-
-      if (book.copies < quantity) {
-        res.status(400).json({
-          success: false,
-          message: `Not enough copies, available: ${book.copies}, requested: ${quantity}`,
-        });
-        return;
-      }
-
-      book.copies -= quantity;
-      await book.save();
-
-      const borrow = await Borrow.create({
-        book: bookId,
-        quantity,
-        dueDate,
-      });
-
-      res.status(201).json({
-        success: true,
-        message: "Book borrowed successfully",
-        data: borrow,
-      });
-    } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: (error as Error).message || "Failed to borrow book",
-        error,
-      });
+export const borrowBook = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const parsed = BorrowSchema.safeParse(req.body);
+    if (!parsed.success) {
+      sendError(res, "Validation failed", 400, parsed.error.errors);
+      return;
     }
-  }
-);
 
-// 7. Borrowed Books Summary
-borrowRoutes.get("/", async (req: Request, res: Response) => {
+    const { book: bookId, quantity, dueDate } = parsed.data;
+    const book = await Book.findById(bookId);
+
+    if (!book) {
+      sendError(res, `Invalid Book ID: '${bookId}'`, 404, null);
+      return;
+    }
+
+    if (!book.available) {
+      sendError(
+        res,
+        `Book '${book.title}' (ISBN: ${book.isbn}) is not available for borrowing`,
+        400,
+        null
+      );
+      return;
+    }
+
+    if (book.copies < quantity) {
+      sendError(
+        res,
+        `Not enough copies available. Available: ${book.copies}, Requested: ${quantity}`,
+        400,
+        null
+      );
+      return;
+    }
+
+    book.copies -= quantity;
+    await book.save();
+
+    const borrow = await Borrow.create({ book: bookId, quantity, dueDate });
+    sendSuccess(res, "Book borrowed successfully", borrow, 201);
+  } catch (error) {
+    sendError(
+      res,
+      (error as Error).message || "Failed to borrow book",
+      500,
+      error
+    );
+  }
+};
+
+export const getBorrowSummary = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const summary = await Borrow.aggregate([
-      {
-        $group: {
-          _id: "$book",
-          totalQuantity: { $sum: "$quantity" },
-        },
-      },
+      { $group: { _id: "$book", totalQuantity: { $sum: "$quantity" } } },
       {
         $lookup: {
           from: "books",
@@ -104,18 +89,18 @@ borrowRoutes.get("/", async (req: Request, res: Response) => {
       },
     ]);
 
-    res.json({
-      success: true,
-      message: "Borrowed books summary retrieved successfully",
-      data: summary,
-    });
+    sendSuccess(res, "Borrowed books summary retrieved successfully", summary);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || "Failed to retrieve summary",
-      error,
-    });
+    sendError(
+      res,
+      (error as Error).message || "Failed to retrieve summary",
+      500,
+      error
+    );
   }
-});
+};
+
+borrowRoutes.post("/", checkNotEmptyBody, borrowBook);
+borrowRoutes.get("/", getBorrowSummary);
 
 export default borrowRoutes;
