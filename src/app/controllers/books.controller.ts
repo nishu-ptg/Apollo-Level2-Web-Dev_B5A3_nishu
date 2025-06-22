@@ -45,16 +45,23 @@ const getAllBooks = async (req: Request, res: Response): Promise<void> => {
       filter,
       sortBy = "createdAt",
       sort = "asc",
-      limit = 10,
+      limit = "10",
+      page = "1",
     } = req.query;
 
-    const query: any = {};
+    const parsedLimit = Math.max(Number(limit), 1);
+    const parsedPage = Math.max(Number(page), 1);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const query: Record<string, any> = {};
     if (filter) query.genre = filter;
 
     const sortOrder = sort === "desc" ? -1 : 1;
+
     const books = await Book.find(query)
       .sort({ [sortBy as string]: sortOrder })
-      .limit(Number(limit));
+      .skip(skip)
+      .limit(parsedLimit);
 
     if (!books.length) {
       sendSuccess(
@@ -75,6 +82,7 @@ const getAllBooks = async (req: Request, res: Response): Promise<void> => {
     );
   }
 };
+
 
 const getBookById = async (req: Request, res: Response): Promise<void> => {
   try {

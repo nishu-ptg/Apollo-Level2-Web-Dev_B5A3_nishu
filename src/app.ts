@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import booksRoutes from "./app/controllers/books.controller";
 import borrowRoutes from "./app/controllers/borrow.controller";
 import errorHandler from "./app/middlewares/errorHandler";
+import { sendError } from "./app/utils/response";
+import seedRoutes from "./app/controllers/seed.controller";
 
 const app = express();
 
@@ -13,6 +15,7 @@ app.use(errorHandler);
 
 app.use("/api/books", booksRoutes);
 app.use("/api/borrow", borrowRoutes);
+app.use("/api/admin/seed", seedRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send(
@@ -21,10 +24,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api", (req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: "404 route not found",
-  });
+  sendError(res, "404 route not found", 500, null);
 });
 
 app.use((req: Request, res: Response) => {

@@ -5,9 +5,7 @@ node_modules/
 dist/
 
 # Local env files
-# .env
-# .env file included in the repository 
-# intentionally for assignment purposes
+.env
 
 # Logs
 npm-debug.log*

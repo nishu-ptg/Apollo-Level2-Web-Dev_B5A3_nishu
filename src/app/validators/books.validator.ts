@@ -29,6 +29,8 @@ const BookSchema = z.object({
     .number({ required_error: "Copies is required" })
     .int("Copies must be an integer")
     .nonnegative("Copies can't be negative"),
+
+  available: z.boolean().optional().default(true),
 });
 
 export default BookSchema;

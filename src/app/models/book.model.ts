@@ -32,10 +32,10 @@ const bookSchema = new Schema<IBook>(
   }
 );
 
-bookSchema.pre("save", function (next) {
-  this.available = this.copies > 0;
-  next();
-});
+// bookSchema.pre("save", function (next) {
+//   this.available = this.copies > 0;
+//   next();
+// });
 
 bookSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate() as UpdateQuery<IBook>;
@@ -44,7 +44,10 @@ bookSchema.pre("findOneAndUpdate", function (next) {
     (update.copies as number | undefined) ??
     (update.$set?.copies as number | undefined);
 
-  if (copies !== undefined) {
+  const availableProvided =
+    "available" in (update.$set ?? {}) || "available" in update;
+
+  if (copies !== undefined && !availableProvided) {
     const available = copies > 0;
 
     if (update.$set) {
