@@ -279,4 +279,4 @@ This API employs a dual-layer validation strategy for robust data integrity:
 
 - **GitHub Repository:** https://github.com/nishu-ptg/Apollo-Level2-Web-Dev_B5A3_nishu
 - **Live Deployment:** https://apollo-level2-web-dev-b5-a3-nishu.vercel.app/
-- **Video Explanation:** TODO
+- **Video Explanation:** https://www.youtube.com/watch?v=Mnc5kQkwA14
