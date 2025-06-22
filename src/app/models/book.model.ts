@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import IBook from "../interfaces/book.interface";
+import IBook, { Genre } from "../interfaces/book.interface";
 
 const bookSchema = new Schema<IBook>(
   {
@@ -8,14 +8,7 @@ const bookSchema = new Schema<IBook>(
     genre: {
       type: String,
       required: true,
-      enum: [
-        "FICTION",
-        "NON_FICTION",
-        "SCIENCE",
-        "HISTORY",
-        "BIOGRAPHY",
-        "FANTASY",
-      ],
+      enum: Genre,
     },
     isbn: { type: String, required: true, unique: true },
     description: { type: String },

@@ -1,10 +1,11 @@
-export type Genre =
-  | "FICTION"
-  | "NON_FICTION"
-  | "SCIENCE"
-  | "HISTORY"
-  | "BIOGRAPHY"
-  | "FANTASY";
+export enum Genre {
+  FICTION = "FICTION",
+  NON_FICTION = "NON_FICTION",
+  SCIENCE = "SCIENCE",
+  HISTORY = "HISTORY",
+  BIOGRAPHY = "BIOGRAPHY",
+  FANTASY = "FANTASY",
+}
 
 export default interface IBook {
   title: string;
